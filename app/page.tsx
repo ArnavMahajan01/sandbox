@@ -1,3 +1,5 @@
+import { UserButton } from "@clerk/nextjs"
+import { auth } from "@clerk/nextjs/server"
 import Image from "next/image"
 
 import {
@@ -8,9 +10,11 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty"
 
-export default function Page() {
+export default async function Page() {
+  await auth.protect({ unauthenticatedUrl: "/sign-in" })
+
   return (
-    <main className="flex min-h-svh">
+    <main className="flex min-h-svh flex-col">
       <Empty>
         <EmptyHeader>
           <EmptyMedia>
@@ -25,6 +29,10 @@ export default function Page() {
           </EmptyDescription>
         </EmptyHeader>
       </Empty>
+
+      <div className="flex justify-center pb-10">
+        <UserButton />
+      </div>
     </main>
   )
 }

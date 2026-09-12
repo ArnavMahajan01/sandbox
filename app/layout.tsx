@@ -3,7 +3,6 @@ import { shadcn } from "@clerk/ui/themes"
 import { Geist, Geist_Mono } from "next/font/google"
 
 import "./globals.css"
-import { SiteHeader } from "@/components/site-header"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
 import { Metadata } from "next"
@@ -40,10 +39,7 @@ export default function RootLayout({
     >
       <body>
         <ClerkProvider appearance={{ theme: shadcn }}>
-          <ThemeProvider>
-            <SiteHeader />
-            {children}
-          </ThemeProvider>
+          <ThemeProvider>{children}</ThemeProvider>
         </ClerkProvider>
       </body>
     </html>
