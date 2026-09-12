@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils";
-
+import { Metadata } from "next";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'})
 
 const fontMono = Geist_Mono({
@@ -11,6 +11,13 @@ const fontMono = Geist_Mono({
   variable: "--font-mono",
 })
 
+export const metadata: Metadata = {
+  title: {
+    default: "Sandbox - Build Games using Prompts",
+    template: "%s | Sandbox",
+  },
+  description: "Build your own racers, shooters, puzzles and whole worlds using your own words. If you can describe it, you can play it.",
+}
 export default function RootLayout({
   children,
 }: Readonly<{
