@@ -1,4 +1,4 @@
-import { UserButton } from "@clerk/nextjs"
+import { OrganizationSwitcher, UserButton } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import Image from "next/image"
 
@@ -32,7 +32,9 @@ export default async function Page() {
 
       <div className="flex justify-center pb-10">
         <UserButton />
+        <OrganizationSwitcher />
       </div>
+
     </main>
   )
 }
