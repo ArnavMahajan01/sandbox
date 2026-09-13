@@ -26,12 +26,26 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
+import { createGame } from "@/lib/games/actions"
+
+const suggestions = [
+  { icon: PickaxeIcon, label: "Voxel survival" },
+  { icon: SwordsIcon, label: "Ink samurai duel" },
+  { icon: ZapIcon, label: "Comic-book firefight" },
+  { icon: PlaneIcon, label: "Realistic battlefield" },
+  { icon: CrosshairIcon, label: "Fight-first shooter" },
+  { icon: CarIcon, label: "Jungle expedition drive" },
+  { icon: Gamepad2Icon, label: "Sunny kingdom platformer" },
+]
 
 export function ChatComposer() {
   return (
-    <div className="flex w-full flex-col gap-6">
+    <form action={createGame} className="flex w-full flex-col gap-6">
       <InputGroup>
-        <InputGroupTextarea placeholder="Describe the game you want to build…" />
+        <InputGroupTextarea
+          name="prompt"
+          placeholder="Describe the game you want to build…"
+        />
         <InputGroupAddon align="block-end">
           <DropdownMenu>
             <DropdownMenuTrigger
@@ -49,42 +63,28 @@ export function ChatComposer() {
               <DropdownMenuItem>Kimi Flash</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button size="icon-sm" className="ml-auto rounded-full">
+          <Button type="submit" size="icon-sm" className="ml-auto rounded-full">
             <ArrowUpIcon />
           </Button>
         </InputGroupAddon>
       </InputGroup>
 
       <div className="flex flex-wrap justify-center gap-3">
-        <Button variant="outline" size="sm" className="rounded-full">
-          <PickaxeIcon />
-          Voxel survival
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-full">
-          <SwordsIcon />
-          Ink samurai duel
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-full">
-          <ZapIcon />
-          Comic-book firefight
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-full">
-          <PlaneIcon />
-          Realistic battlefield
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-full">
-          <CrosshairIcon />
-          Fight-first shooter
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-full">
-          <CarIcon />
-          Jungle expedition drive
-        </Button>
-        <Button variant="outline" size="sm" className="rounded-full">
-          <Gamepad2Icon />
-          Sunny kingdom platformer
-        </Button>
+        {suggestions.map(({ icon: Icon, label }) => (
+          <Button
+            key={label}
+            type="submit"
+            name="suggestion"
+            value={label}
+            variant="outline"
+            size="sm"
+            className="rounded-full"
+          >
+            <Icon />
+            {label}
+          </Button>
+        ))}
       </div>
-    </div>
+    </form>
   )
 }
