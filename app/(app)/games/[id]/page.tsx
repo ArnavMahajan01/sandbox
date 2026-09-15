@@ -1,13 +1,9 @@
 import { auth } from "@clerk/nextjs/server"
 
-export default async function GamePage({ params }: PageProps<"/games/[id]">) {
+import { ChatThread } from "@/components/chat-thread"
+
+export default async function GamePage() {
   await auth.protect({ unauthenticatedUrl: "/sign-in" })
 
-  const { id } = await params
-
-  return (
-    <main className="flex min-h-svh flex-col p-6">
-      <p>{id}</p>
-    </main>
-  )
+  return <ChatThread />
 }
