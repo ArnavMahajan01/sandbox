@@ -87,7 +87,7 @@ export function ChatThread() {
                         </MessageAvatar>
                       )}
                       <MessageContent>
-                        <Bubble variant={isAssistant ? "muted" : "default"}>
+                        <Bubble variant={isAssistant ? "ghost" : "secondary"}>
                           <BubbleContent>{content}</BubbleContent>
                         </Bubble>
                       </MessageContent>
