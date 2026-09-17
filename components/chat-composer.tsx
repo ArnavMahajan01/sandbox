@@ -15,15 +15,35 @@ import {
   InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
-import { createGame } from "@/lib/games/actions"
 
-export function ChatComposer() {
+export function ChatComposer({
+  value,
+  onValueChange,
+  onSubmit,
+  formId,
+}: {
+  value: string
+  onValueChange: (value: string) => void
+  onSubmit: (value: string) => void
+  formId?: string
+}) {
   return (
-    <form action={createGame} id="new-game" className="w-full">
+    <form
+      id={formId}
+      className="w-full"
+      onSubmit={(event) => {
+        event.preventDefault()
+        const nextValue = value.trim()
+        if (!nextValue) return
+        onSubmit(nextValue)
+      }}
+    >
       <InputGroup>
         <InputGroupTextarea
           name="prompt"
           placeholder="Describe the game you want to build…"
+          value={value}
+          onChange={(event) => onValueChange(event.target.value)}
         />
         <InputGroupAddon align="block-end">
           <DropdownMenu>
