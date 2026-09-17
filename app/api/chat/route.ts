@@ -1,5 +1,5 @@
-import { anthropic } from "@ai-sdk/anthropic"
 import { auth } from "@clerk/nextjs/server"
+import { openrouter } from "@openrouter/ai-sdk-provider"
 import {
   convertToModelMessages,
   createUIMessageStreamResponse,
@@ -9,6 +9,8 @@ import {
 } from "ai"
 
 export const maxDuration = 30
+
+const model = process.env.OPENROUTER_MODEL ?? "openrouter/free"
 
 export async function POST(req: Request) {
   const { isAuthenticated } = await auth()
@@ -20,7 +22,7 @@ export async function POST(req: Request) {
   const { messages }: { messages: UIMessage[] } = await req.json()
 
   const result = streamText({
-    model: anthropic("claude-sonnet-5"),
+    model: openrouter(model),
     messages: await convertToModelMessages(messages),
   })
 

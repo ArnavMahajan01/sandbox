@@ -2,9 +2,18 @@
 
 import { useState } from "react"
 import Image from "next/image"
+import { useChat } from "@ai-sdk/react"
+import { APICallError } from "ai"
 
 import { ChatComposer } from "@/components/chat-composer"
+import {
+  Alert,
+  AlertAction,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
+import { Button } from "@/components/ui/button"
 import { Message, MessageAvatar, MessageContent } from "@/components/ui/message"
 import {
   MessageScroller,
@@ -14,57 +23,36 @@ import {
   MessageScrollerProvider,
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
+import { Spinner } from "@/components/ui/spinner"
 
-type MockMessage = {
-  id: string
-  role: "assistant" | "user"
-  content: string
+function AssistantAvatar() {
+  return (
+    <MessageAvatar className="size-8 self-start rounded-lg bg-transparent">
+      <Image
+        src="/logo.svg"
+        alt=""
+        width={32}
+        height={32}
+        className="size-full"
+      />
+    </MessageAvatar>
+  )
 }
 
-const conversation: MockMessage[] = [
-  {
-    id: "1",
-    role: "user",
-    content:
-      "I want a top-down space shooter. One ship, endless waves of asteroids, and a score that ticks up the longer I survive.",
-  },
-  {
-    id: "2",
-    role: "assistant",
-    content:
-      "Good starting point. I'll set up a canvas with a ship that follows your pointer, asteroids drifting in from the edges, and a score counter in the corner. Arrow keys will work too, in case you'd rather play with the keyboard.",
-  },
-  {
-    id: "3",
-    role: "user",
-    content: "Can the asteroids break into smaller pieces when I shoot them?",
-  },
-  {
-    id: "4",
-    role: "assistant",
-    content:
-      "Each large asteroid now splits into two medium ones, and those split again into three small fragments before disappearing. The smaller pieces move faster and are worth more points, so clearing a big rock is a real decision rather than a free hit.",
-  },
-  {
-    id: "5",
-    role: "user",
-    content:
-      "Nice. Make it get harder over time, and give me three lives instead of one.",
-  },
-  {
-    id: "6",
-    role: "assistant",
-    content:
-      "Every thirty seconds the spawn rate climbs and the asteroids pick up a little speed, so runs stay tense without turning unfair. You start with three lives, and losing one gives you a brief window of invulnerability to get clear of the debris.",
-  },
-]
+function describeError(error: Error) {
+  if (APICallError.isInstance(error) && error.statusCode === 401) {
+    return "Your session expired. Sign in again to keep chatting."
+  }
 
-function sendMessage(value: string) {
-  console.log(value)
+  return "The response could not be generated. Please try again."
 }
 
 export function ChatThread() {
   const [value, setValue] = useState("")
+  const { messages, sendMessage, setMessages, regenerate, status, error } =
+    useChat()
+
+  const isStreaming = status === "submitted" || status === "streaming"
 
   return (
     <MessageScrollerProvider>
@@ -72,8 +60,14 @@ export function ChatThread() {
         <MessageScroller className="min-h-0 flex-1">
           <MessageScrollerViewport>
             <MessageScrollerContent className="mx-auto w-full max-w-3xl px-6 py-8">
-              {conversation.map(({ id, role, content }) => {
+              {messages.map(({ id, role, parts }) => {
                 const isAssistant = role === "assistant"
+                const text = parts
+                  .filter((part) => part.type === "text")
+                  .map((part) => part.text)
+                  .join("")
+
+                if (!text) return null
 
                 return (
                   <MessageScrollerItem
@@ -82,37 +76,70 @@ export function ChatThread() {
                     scrollAnchor={!isAssistant}
                   >
                     <Message align={isAssistant ? "start" : "end"}>
-                      {isAssistant && (
-                        <MessageAvatar className="size-8 self-start rounded-lg bg-transparent">
-                          <Image
-                            src="/logo.svg"
-                            alt=""
-                            width={32}
-                            height={32}
-                            className="size-full"
-                          />
-                        </MessageAvatar>
-                      )}
+                      {isAssistant && <AssistantAvatar />}
                       <MessageContent>
                         <Bubble variant={isAssistant ? "ghost" : "secondary"}>
-                          <BubbleContent>{content}</BubbleContent>
+                          <BubbleContent className="whitespace-pre-wrap">
+                            {text}
+                          </BubbleContent>
                         </Bubble>
                       </MessageContent>
                     </Message>
                   </MessageScrollerItem>
                 )
               })}
+
+              {status === "submitted" && (
+                <Message align="start">
+                  <AssistantAvatar />
+                  <MessageContent>
+                    <Bubble variant="ghost">
+                      <BubbleContent>
+                        <Spinner className="text-muted-foreground" />
+                      </BubbleContent>
+                    </Bubble>
+                  </MessageContent>
+                </Message>
+              )}
             </MessageScrollerContent>
           </MessageScrollerViewport>
           <MessageScrollerButton />
         </MessageScroller>
 
-        <div className="mx-auto w-full max-w-3xl shrink-0 px-6 pb-6">
+        <div className="mx-auto flex w-full max-w-3xl shrink-0 flex-col gap-3 px-6 pb-6">
+          {error && (
+            <Alert variant="destructive">
+              <AlertTitle>Something went wrong</AlertTitle>
+              <AlertDescription>{describeError(error)}</AlertDescription>
+              <AlertAction>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => void regenerate()}
+                >
+                  Retry
+                </Button>
+              </AlertAction>
+            </Alert>
+          )}
+
           <ChatComposer
             value={value}
             onValueChange={setValue}
+            disabled={isStreaming}
             onSubmit={(nextValue) => {
-              sendMessage(nextValue)
+              // A failed turn leaves its user message (and any partial reply)
+              // behind; drop them so the retry doesn't send a dangling turn.
+              if (error) {
+                setMessages((current) =>
+                  current.at(-1)?.role === "assistant"
+                    ? current.slice(0, -2)
+                    : current.slice(0, -1)
+                )
+              }
+
+              void sendMessage({ text: nextValue })
               setValue("")
             }}
           />

@@ -21,11 +21,13 @@ export function ChatComposer({
   onValueChange,
   onSubmit,
   formId,
+  disabled = false,
 }: {
   value: string
   onValueChange: (value: string) => void
   onSubmit: (value: string) => void
   formId?: string
+  disabled?: boolean
 }) {
   return (
     <form
@@ -33,6 +35,7 @@ export function ChatComposer({
       className="w-full"
       onSubmit={(event) => {
         event.preventDefault()
+        if (disabled) return
         const nextValue = value.trim()
         if (!nextValue) return
         onSubmit(nextValue)
@@ -62,7 +65,12 @@ export function ChatComposer({
               <DropdownMenuItem>Kimi Flash</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-          <Button type="submit" size="icon-sm" className="ml-auto rounded-full">
+          <Button
+            type="submit"
+            size="icon-sm"
+            disabled={disabled}
+            className="ml-auto rounded-full"
+          >
             <ArrowUpIcon />
           </Button>
         </InputGroupAddon>
