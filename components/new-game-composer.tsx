@@ -1,20 +1,28 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
+import { useRouter } from "next/navigation"
 
 import { ChatComposer } from "@/components/chat-composer"
 import { Button } from "@/components/ui/button"
 import { createGame } from "@/lib/games/actions"
+import { queueGamePrompt } from "@/lib/games/pending-prompt"
 import { suggestions } from "@/lib/games/suggestions"
 
 export function NewGameComposer() {
+  const router = useRouter()
   const [value, setValue] = useState("")
+  const [isPending, startTransition] = useTransition()
 
-  async function submitGame(nextValue: string, field: "prompt" | "suggestion") {
+  function submitGame(nextValue: string, field: "prompt" | "suggestion") {
     const formData = new FormData()
     formData.set(field, nextValue)
-    await createGame(formData)
-    setValue("")
+    startTransition(async () => {
+      const id = await createGame(formData)
+      if (!id) return
+      queueGamePrompt(id, nextValue)
+      router.push(`/games/${id}`)
+    })
   }
 
   return (
@@ -23,8 +31,9 @@ export function NewGameComposer() {
         formId="new-game"
         value={value}
         onValueChange={setValue}
+        disabled={isPending}
         onSubmit={(prompt) => {
-          void submitGame(prompt, "prompt")
+          submitGame(prompt, "prompt")
         }}
       />
       <div className="flex flex-wrap justify-center gap-3">
@@ -35,8 +44,9 @@ export function NewGameComposer() {
             variant="outline"
             size="sm"
             className="rounded-full"
+            disabled={isPending}
             onClick={() => {
-              void submitGame(label, "suggestion")
+              submitGame(label, "suggestion")
             }}
           >
             <Icon />

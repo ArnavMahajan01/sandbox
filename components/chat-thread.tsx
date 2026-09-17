@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import Image from "next/image"
 import { useChat } from "@ai-sdk/react"
-import { APICallError } from "ai"
+import { APICallError, DefaultChatTransport, type UIMessage } from "ai"
 
 import { ChatComposer } from "@/components/chat-composer"
 import {
@@ -24,6 +24,7 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { Spinner } from "@/components/ui/spinner"
+import { pendingGamePromptKey } from "@/lib/games/pending-prompt"
 
 function AssistantAvatar() {
   return (
@@ -47,10 +48,50 @@ function describeError(error: Error) {
   return "The response could not be generated. Please try again."
 }
 
-export function ChatThread() {
+export function ChatThread({
+  gameId,
+  initialMessages,
+}: {
+  gameId: string
+  initialMessages: UIMessage[]
+}) {
   const [value, setValue] = useState("")
   const { messages, sendMessage, setMessages, regenerate, status, error } =
-    useChat()
+    useChat({
+      id: gameId,
+      messages: initialMessages,
+      transport: new DefaultChatTransport({
+        // The server owns the stored thread, so send only the new turn.
+        prepareSendMessagesRequest: ({ id, messages, trigger }) => ({
+          body: {
+            id,
+            trigger,
+            message: trigger === "submit-message" ? messages.at(-1) : undefined,
+          },
+        }),
+      }),
+    })
+
+  useEffect(() => {
+    // Opening prompts are queued by the homepage composer before it navigates.
+    const key = pendingGamePromptKey(gameId)
+    const pendingPrompt = sessionStorage.getItem(key)
+    if (!pendingPrompt) return
+
+    if (initialMessages.length > 0) {
+      sessionStorage.removeItem(key)
+      return
+    }
+
+    if (messages.length === 0 && status === "ready") {
+      void sendMessage({ text: pendingPrompt })
+      return
+    }
+
+    if (messages.length > 0) {
+      sessionStorage.removeItem(key)
+    }
+  }, [gameId, initialMessages.length, messages.length, sendMessage, status])
 
   const isStreaming = status === "submitted" || status === "streaming"
 
