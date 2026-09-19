@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import Image from "next/image"
 import { useChat } from "@ai-sdk/react"
 import type { ChatSessionPersistedState } from "@trigger.dev/sdk/chat"
@@ -69,13 +69,27 @@ export function ChatThread({
       startChatSession({ chatId, clientData }),
     sessions: initialSessions,
   })
-  const { messages, sendMessage, setMessages, regenerate, status, error } =
-    useChat({
-      id: gameId,
-      messages: initialMessages,
-      transport,
-      resume: Boolean(initialSessions),
-    })
+  const {
+    messages,
+    sendMessage,
+    setMessages,
+    regenerate,
+    stop: aiStop,
+    status,
+    error,
+  } = useChat({
+    id: gameId,
+    messages: initialMessages,
+    transport,
+    resume: Boolean(initialSessions),
+  })
+
+  // stopGeneration aborts the running task's streamText (works even after a
+  // page refresh reconnected the stream), while aiStop resets the UI status.
+  const stop = useCallback(() => {
+    void transport.stopGeneration(gameId)
+    void aiStop()
+  }, [transport, gameId, aiStop])
 
   useEffect(() => {
     // Opening prompts are queued by the homepage composer before it navigates.
@@ -173,7 +187,8 @@ export function ChatThread({
           <ChatComposer
             value={value}
             onValueChange={setValue}
-            disabled={isStreaming}
+            isStreaming={isStreaming}
+            onStop={stop}
             onSubmit={(nextValue) => {
               // A failed turn leaves its user message (and any partial reply)
               // behind; drop them so the retry doesn't send a dangling turn.

@@ -39,6 +39,10 @@ export async function loadGameChat(chatId: string) {
   return game
 }
 
+export async function saveGameSandboxId(id: string, sandboxId: string) {
+  await db.update(games).set({ sandboxId }).where(eq(games.id, id))
+}
+
 export async function saveGameChat({
   id,
   orgId,
