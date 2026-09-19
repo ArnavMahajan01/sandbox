@@ -136,7 +136,10 @@ export function AppSidebar({ games }: { games: Game[] }) {
       <SidebarFooter>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton>
+            <SidebarMenuButton
+              isActive={pathname === "/billing"}
+              render={<Link href="/billing" />}
+            >
               <CoinsIcon />
               <span>Credits</span>
             </SidebarMenuButton>

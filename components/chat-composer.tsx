@@ -1,20 +1,15 @@
 "use client"
 
-import { ArrowUpIcon, ChevronDownIcon, GripIcon, SquareIcon } from "lucide-react"
+import { ArrowUpIcon, SquareIcon } from "lucide-react"
 
+import { ModelPicker } from "@/components/model-picker"
 import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
 import {
   InputGroup,
   InputGroupAddon,
-  InputGroupButton,
   InputGroupTextarea,
 } from "@/components/ui/input-group"
+import type { GameModelId } from "@/lib/games/model-catalog"
 
 export function ChatComposer({
   value,
@@ -24,6 +19,8 @@ export function ChatComposer({
   isStreaming = false,
   formId,
   disabled = false,
+  modelId,
+  onModelChange,
 }: {
   value: string
   onValueChange: (value: string) => void
@@ -32,6 +29,10 @@ export function ChatComposer({
   isStreaming?: boolean
   formId?: string
   disabled?: boolean
+  // Omitted where there is nowhere to send the choice yet, which hides the
+  // picker rather than showing a control that does nothing.
+  modelId?: GameModelId
+  onModelChange?: (modelId: GameModelId) => void
 }) {
   return (
     <form
@@ -55,22 +56,13 @@ export function ChatComposer({
           onChange={(event) => onValueChange(event.target.value)}
         />
         <InputGroupAddon align="block-end">
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <InputGroupButton>
-                  <GripIcon />
-                  Kimi K3
-                  <ChevronDownIcon />
-                </InputGroupButton>
-              }
+          {modelId && onModelChange && (
+            <ModelPicker
+              modelId={modelId}
+              onModelChange={onModelChange}
+              disabled={disabled}
             />
-            <DropdownMenuContent>
-              <DropdownMenuItem>Kimi K3</DropdownMenuItem>
-              <DropdownMenuItem>Kimi K2</DropdownMenuItem>
-              <DropdownMenuItem>Kimi Flash</DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          )}
           {isStreaming ? (
             <Button
               type="button"

@@ -6,12 +6,17 @@ import { useRouter } from "next/navigation"
 import { ChatComposer } from "@/components/chat-composer"
 import { Button } from "@/components/ui/button"
 import { createGame } from "@/lib/games/actions"
+import {
+  DEFAULT_GAME_MODEL_ID,
+  type GameModelId,
+} from "@/lib/games/model-catalog"
 import { queueGamePrompt } from "@/lib/games/pending-prompt"
 import { suggestions } from "@/lib/games/suggestions"
 
 export function NewGameComposer() {
   const router = useRouter()
   const [value, setValue] = useState("")
+  const [modelId, setModelId] = useState<GameModelId>(DEFAULT_GAME_MODEL_ID)
   const [isPending, startTransition] = useTransition()
 
   function submitGame(nextValue: string, field: "prompt" | "suggestion") {
@@ -20,7 +25,7 @@ export function NewGameComposer() {
     startTransition(async () => {
       const id = await createGame(formData)
       if (!id) return
-      queueGamePrompt(id, nextValue)
+      queueGamePrompt(id, nextValue, modelId)
       router.push(`/games/${id}`)
     })
   }
@@ -32,6 +37,8 @@ export function NewGameComposer() {
         value={value}
         onValueChange={setValue}
         disabled={isPending}
+        modelId={modelId}
+        onModelChange={setModelId}
         onSubmit={(prompt) => {
           submitGame(prompt, "prompt")
         }}

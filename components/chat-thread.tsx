@@ -52,7 +52,7 @@ import {
   DEFAULT_GAME_MODEL_ID,
   type GameModelId,
 } from "@/lib/games/model-catalog"
-import { pendingGamePromptKey } from "@/lib/games/pending-prompt"
+import { clearGamePrompt, readGamePrompt } from "@/lib/games/pending-prompt"
 import type { gameChat } from "@/src/trigger/chat"
 
 function AssistantAvatar() {
@@ -102,7 +102,7 @@ function ToolMarker({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
   return (
     <Marker
       data-status={status}
-      className="data-[status=failed]:text-destructive data-[status=done]:text-foreground"
+      className="data-[status=done]:text-foreground data-[status=failed]:text-destructive"
     >
       <MarkerIcon>
         {status === "active" ? (
@@ -166,8 +166,7 @@ function AskPlayerQuestionnaire({
   input: AskPlayerInput
   onAnswer: (output: AskPlayerOutput) => void
 }) {
-  const dimensionLabel =
-    DIMENSION_LABELS[input.dimension] ?? input.dimension
+  const dimensionLabel = DIMENSION_LABELS[input.dimension] ?? input.dimension
 
   return (
     <Bubble variant="ghost" className="w-full">
@@ -175,9 +174,7 @@ function AskPlayerQuestionnaire({
         <Questionnaire
           onSubmit={(event) => {
             event.preventDefault()
-            const chosenId = new FormData(event.currentTarget).get(
-              toolCallId
-            )
+            const chosenId = new FormData(event.currentTarget).get(toolCallId)
             if (typeof chosenId !== "string") return
             const chosen = input.options.find(
               (option) => option.id === chosenId
@@ -241,18 +238,17 @@ export function ChatThread({
   gameId,
   initialMessages,
   initialSessions,
-  modelId = DEFAULT_GAME_MODEL_ID,
   onTurnFinish,
 }: {
   gameId: string
   initialMessages: UIMessage[]
   initialSessions?: Record<string, ChatSessionPersistedState>
-  modelId?: GameModelId
   onTurnFinish?: () => void
 }) {
   const [value, setValue] = useState("")
-  // The transport re-reads this on change, so a later picker only has to swap
-  // the prop; memoized so an unchanged id doesn't look like a new value.
+  const [modelId, setModelId] = useState<GameModelId>(DEFAULT_GAME_MODEL_ID)
+  // The transport live-reads this, so switching models applies from the next
+  // turn on. Memoized so an unchanged id doesn't look like a new value.
   const clientData = useMemo(() => ({ modelId }), [modelId])
   const transport = useTriggerChatTransport<typeof gameChat>({
     task: "game-chat",
@@ -293,23 +289,38 @@ export function ChatThread({
   }, [transport, gameId, aiStop])
 
   useEffect(() => {
-    // Opening prompts are queued by the homepage composer before it navigates.
-    const key = pendingGamePromptKey(gameId)
-    const pendingPrompt = sessionStorage.getItem(key)
-    if (!pendingPrompt) return
+    // Opening prompts are queued by the homepage composer before it navigates,
+    // along with the model chosen there.
+    const pending = readGamePrompt(gameId)
+    if (!pending) return
 
     if (initialMessages.length > 0) {
-      sessionStorage.removeItem(key)
+      clearGamePrompt(gameId)
       return
     }
 
     if (messages.length === 0 && status === "ready") {
-      void sendMessage({ text: pendingPrompt })
+      const carried = pending.modelId ?? DEFAULT_GAME_MODEL_ID
+
+      // Session storage is client-only, so the carried choice cannot be known
+      // until after mount; this one cascading render is the cost of not
+      // putting the model in the URL. It only moves the picker's label — the
+      // turn below is already on the right model.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setModelId(carried)
+
+      // That state has not flushed yet, so the transport still carries the
+      // default. Per-message metadata wins over transport client data, and is
+      // what actually puts this first turn on the chosen model.
+      void sendMessage(
+        { text: pending.prompt },
+        { metadata: { modelId: carried } }
+      )
       return
     }
 
     if (messages.length > 0) {
-      sessionStorage.removeItem(key)
+      clearGamePrompt(gameId)
     }
   }, [gameId, initialMessages.length, messages.length, sendMessage, status])
 
@@ -430,6 +441,8 @@ export function ChatThread({
             onValueChange={setValue}
             isStreaming={isStreaming}
             onStop={stop}
+            modelId={modelId}
+            onModelChange={setModelId}
             onSubmit={(nextValue) => {
               // A failed turn leaves its user message (and any partial reply)
               // behind; drop them so the retry doesn't send a dangling turn.
