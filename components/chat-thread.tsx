@@ -3,7 +3,9 @@
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { useChat } from "@ai-sdk/react"
-import { APICallError, DefaultChatTransport, type UIMessage } from "ai"
+import type { ChatSessionPersistedState } from "@trigger.dev/sdk/chat"
+import { useTriggerChatTransport } from "@trigger.dev/sdk/chat/react"
+import { APICallError, type UIMessage } from "ai"
 
 import { ChatComposer } from "@/components/chat-composer"
 import {
@@ -24,7 +26,9 @@ import {
   MessageScrollerViewport,
 } from "@/components/ui/message-scroller"
 import { Spinner } from "@/components/ui/spinner"
+import { mintChatAccessToken, startChatSession } from "@/lib/games/chat-actions"
 import { pendingGamePromptKey } from "@/lib/games/pending-prompt"
+import type { gameChat } from "@/src/trigger/chat"
 
 function AssistantAvatar() {
   return (
@@ -51,25 +55,26 @@ function describeError(error: Error) {
 export function ChatThread({
   gameId,
   initialMessages,
+  initialSessions,
 }: {
   gameId: string
   initialMessages: UIMessage[]
+  initialSessions?: Record<string, ChatSessionPersistedState>
 }) {
   const [value, setValue] = useState("")
+  const transport = useTriggerChatTransport<typeof gameChat>({
+    task: "game-chat",
+    accessToken: ({ chatId }) => mintChatAccessToken(chatId),
+    startSession: ({ chatId, clientData }) =>
+      startChatSession({ chatId, clientData }),
+    sessions: initialSessions,
+  })
   const { messages, sendMessage, setMessages, regenerate, status, error } =
     useChat({
       id: gameId,
       messages: initialMessages,
-      transport: new DefaultChatTransport({
-        // The server owns the stored thread, so send only the new turn.
-        prepareSendMessagesRequest: ({ id, messages, trigger }) => ({
-          body: {
-            id,
-            trigger,
-            message: trigger === "submit-message" ? messages.at(-1) : undefined,
-          },
-        }),
-      }),
+      transport,
+      resume: Boolean(initialSessions),
     })
 
   useEffect(() => {

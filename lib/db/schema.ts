@@ -17,6 +17,7 @@ export const games = pgTable(
     orgId: text("org_id").notNull(),
     title: text("title").notNull(),
     messages: jsonb("messages").$type<UIMessage[]>().notNull().default([]),
+    lastEventId: text("last_event_id"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -25,7 +26,7 @@ export const games = pgTable(
       .defaultNow()
       .$onUpdate(() => new Date()),
   },
-  (table) => [index("games_org_id_idx").on(table.orgId)],
+  (table) => [index("games_org_id_idx").on(table.orgId)]
 )
 
 export type Game = typeof games.$inferSelect

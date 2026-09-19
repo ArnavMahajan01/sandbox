@@ -1,7 +1,6 @@
 import "server-only"
 
 import { auth } from "@clerk/nextjs/server"
-import type { UIMessage } from "ai"
 import { and, desc, eq } from "drizzle-orm"
 
 import { db, games } from "@/lib/db"
@@ -38,21 +37,4 @@ export async function getGame(id: string) {
     .limit(1)
 
   return game
-}
-
-// Takes `orgId` explicitly because it runs after the response has started
-// streaming, where the request-scoped Clerk context is no longer available.
-export async function saveGameMessages({
-  id,
-  orgId,
-  messages,
-}: {
-  id: string
-  orgId: string
-  messages: UIMessage[]
-}) {
-  await db
-    .update(games)
-    .set({ messages })
-    .where(and(eq(games.id, id), eq(games.orgId, orgId)))
 }

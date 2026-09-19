@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 
 import { ChatThread } from "@/components/chat-thread"
+import { mintChatAccessToken } from "@/lib/games/chat-actions"
 import { getGame } from "@/lib/games/queries"
 
 export default async function GamePage({ params }: PageProps<"/games/[id]">) {
@@ -14,5 +15,20 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
     notFound()
   }
 
-  return <ChatThread gameId={game.id} initialMessages={game.messages} />
+  const initialSessions = game.lastEventId
+    ? {
+        [game.id]: {
+          publicAccessToken: await mintChatAccessToken(game.id),
+          lastEventId: game.lastEventId,
+        },
+      }
+    : undefined
+
+  return (
+    <ChatThread
+      gameId={game.id}
+      initialMessages={game.messages}
+      initialSessions={initialSessions}
+    />
+  )
 }
