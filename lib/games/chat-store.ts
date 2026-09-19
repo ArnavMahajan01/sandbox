@@ -43,6 +43,20 @@ export async function saveGameSandboxId(id: string, sandboxId: string) {
   await db.update(games).set({ sandboxId }).where(eq(games.id, id))
 }
 
+export async function loadGameSandboxId(id: string) {
+  if (!UUID_PATTERN.test(id)) {
+    return undefined
+  }
+
+  const [game] = await db
+    .select({ sandboxId: games.sandboxId })
+    .from(games)
+    .where(eq(games.id, id))
+    .limit(1)
+
+  return game?.sandboxId ?? undefined
+}
+
 export async function saveGameChat({
   id,
   orgId,

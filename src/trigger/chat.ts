@@ -1,10 +1,11 @@
 import { openrouter } from "@openrouter/ai-sdk-provider"
 import { chat, upsertIncomingMessage } from "@trigger.dev/sdk/ai"
-import type { UIMessage } from "ai"
+import { stepCountIs, type UIMessage } from "ai"
 
 import { createGameSandbox } from "@/lib/daytona/util"
 import { loadGameChat, saveGameChat } from "@/lib/games/chat-store"
 import { gameInstructions } from "@/lib/games/instructions"
+import { createGameTools } from "@/lib/games/tools"
 
 const model = process.env.OPENROUTER_MODEL ?? "openrouter/free"
 
@@ -17,6 +18,8 @@ function withoutTrailingReply(messages: UIMessage[]) {
 export const gameChat = chat.agent({
   id: "game-chat",
   system: gameInstructions,
+  // Resolved per turn so each tool is scoped to this chat's game sandbox.
+  tools: ({ chatId }) => createGameTools(chatId),
   // Fires once per chat, on the first user message — provision the game's sandbox.
   onChatStart: async ({ chatId }) => {
     await createGameSandbox(chatId)
@@ -61,10 +64,12 @@ export const gameChat = chat.agent({
       lastEventId,
     })
   },
-  run: async ({ messages, signal, streamText }) =>
+  run: async ({ messages, tools, signal, streamText }) =>
     streamText({
       model: openrouter(model),
       messages,
+      tools,
       abortSignal: signal,
+      stopWhen: stepCountIs(20),
     }),
 })

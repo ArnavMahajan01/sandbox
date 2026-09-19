@@ -1,8 +1,8 @@
-import { Daytona } from "@daytona/sdk"
+import { Daytona, type Sandbox } from "@daytona/sdk"
 
-import { saveGameSandboxId } from "@/lib/games/chat-store"
+import { loadGameSandboxId, saveGameSandboxId } from "@/lib/games/chat-store"
 
-const GAME_DIR = "/home/daytona/game"
+export const GAME_DIR = "/home/daytona/game"
 export const GAME_PORT = 3000
 const GAME_SERVER_SESSION = "game-server"
 
@@ -36,7 +36,36 @@ export async function createGameSandbox(gameId: string) {
 
   await saveGameSandboxId(gameId, sandbox.id)
 
-  return sandbox
+  return { sandbox }
+}
+
+/**
+ * Returns a started sandbox for a game, guaranteed. Reuses the sandbox recorded
+ * on the game (starting it if it's stopped/archived) and falls back to creating
+ * a fresh one when the game has no sandbox or the recorded one is gone. Chat
+ * agent tools can call this to always get a live sandbox to work against.
+ */
+export async function getGameSandbox(
+  gameId: string
+): Promise<{ sandbox: Sandbox }> {
+  const sandboxId = await loadGameSandboxId(gameId)
+
+  if (sandboxId) {
+    try {
+      const daytona = new Daytona()
+      const sandbox = await daytona.get(sandboxId)
+
+      if (sandbox.state !== "started") {
+        await sandbox.start()
+      }
+
+      return { sandbox }
+    } catch {
+      // Recorded sandbox no longer exists; fall through to recreate it.
+    }
+  }
+
+  return createGameSandbox(gameId)
 }
 
 /**
