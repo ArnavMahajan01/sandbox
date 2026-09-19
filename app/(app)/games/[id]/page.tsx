@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 import { notFound } from "next/navigation"
 
-import { ChatThread } from "@/components/chat-thread"
+import { GameChat } from "@/components/game-chat"
 import { mintChatAccessToken } from "@/lib/games/chat-actions"
 import { getGame } from "@/lib/games/queries"
 
@@ -25,10 +25,11 @@ export default async function GamePage({ params }: PageProps<"/games/[id]">) {
     : undefined
 
   return (
-    <ChatThread
+    <GameChat
       gameId={game.id}
       initialMessages={game.messages}
       initialSessions={initialSessions}
+      hasSandbox={Boolean(game.sandboxId)}
     />
   )
 }

@@ -2,6 +2,10 @@ import { Daytona } from "@daytona/sdk"
 
 import { saveGameSandboxId } from "@/lib/games/chat-store"
 
+const GAME_DIR = "/home/daytona/game"
+export const GAME_PORT = 3000
+const GAME_SERVER_SESSION = "game-server"
+
 const INDEX_HTML = `<!doctype html>
 <html lang="en">
   <head>
@@ -33,4 +37,38 @@ export async function createGameSandbox(gameId: string) {
   await saveGameSandboxId(gameId, sandbox.id)
 
   return sandbox
+}
+
+/**
+ * Ensures a static server serving /home/daytona/game/index.html is running in
+ * the sandbox and returns the sandbox. Health-checks the port first so we reuse
+ * an existing server instead of starting a new one each call. Callers mint their
+ * own preview URL from the returned sandbox.
+ */
+export async function startGameServer(sandboxId: string) {
+  const daytona = new Daytona()
+
+  const sandbox = await daytona.get(sandboxId)
+
+  if (sandbox.state !== "started") {
+    await sandbox.start()
+  }
+
+  const health = await sandbox.process.executeCommand(
+    `python3 -c "import urllib.request; urllib.request.urlopen('http://localhost:${GAME_PORT}', timeout=2)"`
+  )
+
+  if (health.exitCode !== 0) {
+    // A session keeps the process alive after executeSessionCommand returns.
+    await sandbox.process
+      .createSession(GAME_SERVER_SESSION)
+      .catch(() => undefined)
+
+    await sandbox.process.executeSessionCommand(GAME_SERVER_SESSION, {
+      command: `python3 -m http.server ${GAME_PORT} --directory ${GAME_DIR}`,
+      runAsync: true,
+    })
+  }
+
+  return { sandbox }
 }
