@@ -37,3 +37,7 @@ next-env.d.ts
 .neon
 
 .trigger
+
+/.claude/
+/.cursor/
+/.agents/
