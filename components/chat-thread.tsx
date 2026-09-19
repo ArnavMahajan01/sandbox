@@ -5,7 +5,15 @@ import Image from "next/image"
 import { useChat } from "@ai-sdk/react"
 import type { ChatSessionPersistedState } from "@trigger.dev/sdk/chat"
 import { useTriggerChatTransport } from "@trigger.dev/sdk/chat/react"
-import { APICallError, type UIMessage } from "ai"
+import {
+  APICallError,
+  getToolName,
+  isToolUIPart,
+  type DynamicToolUIPart,
+  type ToolUIPart,
+  type UIMessage,
+} from "ai"
+import { CircleCheck, CircleX } from "lucide-react"
 
 import { ChatComposer } from "@/components/chat-composer"
 import {
@@ -16,6 +24,7 @@ import {
 } from "@/components/ui/alert"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
+import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
 import { Message, MessageAvatar, MessageContent } from "@/components/ui/message"
 import {
   MessageScroller,
@@ -44,6 +53,64 @@ function AssistantAvatar() {
   )
 }
 
+// Friendly verbs for the game file tools; unknown tools fall back to their id.
+const TOOL_LABELS: Record<string, string> = {
+  writeFile: "Write file",
+  readFile: "Read file",
+  replaceText: "Edit file",
+  listFiles: "List files",
+  deleteFile: "Delete file",
+}
+
+function toolPathDetail(input: unknown): string | null {
+  if (input && typeof input === "object" && "path" in input) {
+    const value = (input as { path?: unknown }).path
+    if (typeof value === "string" && value) return value
+  }
+  return null
+}
+
+// Renders a single tool call as a status marker: active (running), done, or
+// failed. State names come from the AI SDK's ToolUIPart discriminator.
+function ToolMarker({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
+  const label = TOOL_LABELS[getToolName(part)] ?? getToolName(part)
+  const detail = toolPathDetail(part.input)
+
+  const status =
+    part.state === "output-available"
+      ? "done"
+      : part.state === "output-error" || part.state === "output-denied"
+        ? "failed"
+        : "active"
+
+  return (
+    <Marker
+      data-status={status}
+      className="data-[status=failed]:text-destructive data-[status=done]:text-foreground"
+    >
+      <MarkerIcon>
+        {status === "active" ? (
+          <Spinner />
+        ) : status === "done" ? (
+          <CircleCheck className="text-emerald-600 dark:text-emerald-500" />
+        ) : (
+          <CircleX />
+        )}
+      </MarkerIcon>
+      <MarkerContent>
+        {status === "active"
+          ? `${label}\u2026`
+          : status === "failed"
+            ? `${label} failed`
+            : label}
+        {detail && (
+          <span className="ml-1.5 font-mono text-xs opacity-70">{detail}</span>
+        )}
+      </MarkerContent>
+    </Marker>
+  )
+}
+
 function describeError(error: Error) {
   if (APICallError.isInstance(error) && error.statusCode === 401) {
     return "Your session expired. Sign in again to keep chatting."
@@ -56,10 +123,12 @@ export function ChatThread({
   gameId,
   initialMessages,
   initialSessions,
+  onTurnFinish,
 }: {
   gameId: string
   initialMessages: UIMessage[]
   initialSessions?: Record<string, ChatSessionPersistedState>
+  onTurnFinish?: () => void
 }) {
   const [value, setValue] = useState("")
   const transport = useTriggerChatTransport<typeof gameChat>({
@@ -82,6 +151,9 @@ export function ChatThread({
     messages: initialMessages,
     transport,
     resume: Boolean(initialSessions),
+    // Fires when the assistant response finishes streaming, i.e. the turn is
+    // done and the sandbox files reflect the latest changes.
+    onFinish: () => onTurnFinish?.(),
   })
 
   // stopGeneration aborts the running task's streamText (works even after a
@@ -126,8 +198,9 @@ export function ChatThread({
                   .filter((part) => part.type === "text")
                   .map((part) => part.text)
                   .join("")
+                const toolParts = isAssistant ? parts.filter(isToolUIPart) : []
 
-                if (!text) return null
+                if (!text && toolParts.length === 0) return null
 
                 return (
                   <MessageScrollerItem
@@ -138,11 +211,20 @@ export function ChatThread({
                     <Message align={isAssistant ? "start" : "end"}>
                       {isAssistant && <AssistantAvatar />}
                       <MessageContent>
-                        <Bubble variant={isAssistant ? "ghost" : "secondary"}>
-                          <BubbleContent className="whitespace-pre-wrap">
-                            {text}
-                          </BubbleContent>
-                        </Bubble>
+                        {toolParts.length > 0 && (
+                          <div className="flex flex-col gap-1.5">
+                            {toolParts.map((part) => (
+                              <ToolMarker key={part.toolCallId} part={part} />
+                            ))}
+                          </div>
+                        )}
+                        {text && (
+                          <Bubble variant={isAssistant ? "ghost" : "secondary"}>
+                            <BubbleContent className="whitespace-pre-wrap">
+                              {text}
+                            </BubbleContent>
+                          </Bubble>
+                        )}
                       </MessageContent>
                     </Message>
                   </MessageScrollerItem>

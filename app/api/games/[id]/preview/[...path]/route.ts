@@ -50,6 +50,10 @@ export async function GET(
     }
   })
 
+  // The preview reloads in place after every turn; never let the browser serve
+  // a stale index.html or asset from a previous revision of the game.
+  headers.set("cache-control", "no-store")
+
   return new Response(upstream.body, {
     status: upstream.status,
     headers,
