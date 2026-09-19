@@ -31,7 +31,13 @@ import {
 } from "@/components/ui/sidebar"
 import type { Game } from "@/lib/db/schema"
 
-export function AppSidebar({ games }: { games: Game[] }) {
+export function AppSidebar({
+  games,
+  credits,
+}: {
+  games: Game[]
+  credits: string
+}) {
   const pathname = usePathname()
   const [recentsOpen, setRecentsOpen] = useState(false)
 
@@ -143,7 +149,7 @@ export function AppSidebar({ games }: { games: Game[] }) {
               <CoinsIcon />
               <span>Credits</span>
             </SidebarMenuButton>
-            <SidebarMenuBadge>$1.00</SidebarMenuBadge>
+            <SidebarMenuBadge>{credits}</SidebarMenuBadge>
           </SidebarMenuItem>
         </SidebarMenu>
         <div className="flex items-center justify-between gap-2 px-2 group-data-[collapsible=icon]:px-0">

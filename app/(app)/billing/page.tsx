@@ -2,12 +2,15 @@ import { PricingTable } from "@clerk/nextjs"
 import { auth } from "@clerk/nextjs/server"
 import type { Metadata } from "next"
 
+import { getFormattedOrganizationCredits } from "@/lib/credits/reconcile"
+
 export const metadata: Metadata = {
   title: "Billing",
 }
 
 export default async function BillingPage() {
-  await auth.protect({ unauthenticatedUrl: "/sign-in" })
+  const { orgId } = await auth.protect({ unauthenticatedUrl: "/sign-in" })
+  const credits = await getFormattedOrganizationCredits(orgId)
 
   return (
     <div className="flex min-h-svh flex-col">
@@ -19,7 +22,9 @@ export default async function BillingPage() {
         <div className="max-w-3xl space-y-10">
           <section>
             <p className="text-sm text-muted-foreground">Available credits</p>
-            <p className="mt-1 text-4xl font-medium tracking-tight">$8.80</p>
+            <p className="mt-1 text-4xl font-medium tracking-tight">
+              {credits}
+            </p>
             <p className="mt-2 max-w-xl text-sm text-muted-foreground">
               Credits cover the models that build and revise your games. A scene
               already in progress can finish below zero; the next build waits
