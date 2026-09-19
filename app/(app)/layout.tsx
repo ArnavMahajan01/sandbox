@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server"
 
 import { AppSidebar } from "@/components/app-sidebar"
+import { CreditsProvider } from "@/components/credits-provider"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar"
 import { getFormattedOrganizationCredits } from "@/lib/credits/reconcile"
 import { listGames } from "@/lib/games/queries"
@@ -17,9 +18,11 @@ export default async function AppLayout({
   ])
 
   return (
-    <SidebarProvider>
-      <AppSidebar games={games} credits={credits} />
-      <SidebarInset>{children}</SidebarInset>
-    </SidebarProvider>
+    <CreditsProvider initialCredits={credits}>
+      <SidebarProvider>
+        <AppSidebar games={games} />
+        <SidebarInset>{children}</SidebarInset>
+      </SidebarProvider>
+    </CreditsProvider>
   )
 }

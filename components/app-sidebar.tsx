@@ -8,6 +8,7 @@ import Image from "next/image"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
+import { useCredits } from "@/components/credits-provider"
 import { buttonVariants } from "@/components/ui/button"
 import { Empty, EmptyDescription } from "@/components/ui/empty"
 import {
@@ -31,15 +32,10 @@ import {
 } from "@/components/ui/sidebar"
 import type { Game } from "@/lib/db/schema"
 
-export function AppSidebar({
-  games,
-  credits,
-}: {
-  games: Game[]
-  credits: string
-}) {
+export function AppSidebar({ games }: { games: Game[] }) {
   const pathname = usePathname()
   const [recentsOpen, setRecentsOpen] = useState(false)
+  const { credits } = useCredits()
 
   return (
     <Sidebar collapsible="icon">

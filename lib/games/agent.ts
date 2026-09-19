@@ -37,8 +37,8 @@ export const gameClientDataSchema = z
  * Where OpenRouter goes when the chosen model will not answer. Sent as the
  * `models` array, which fails over server-side on rate limits, downtime and
  * moderation refusals, so a stalled step recovers inside the same request
- * instead of surfacing as a failed turn. Only the model that actually runs is
- * billed, and all of these are free anyway.
+ * instead of surfacing as a failed turn. Only the model that actually answers
+ * is charged.
  *
  * Limited to models a live probe found consistently available. Note this
  * rescues a single model's pool being full; it cannot rescue the account-wide

@@ -17,6 +17,7 @@ import {
 import { CircleCheck, CircleX } from "lucide-react"
 
 import { ChatComposer } from "@/components/chat-composer"
+import { useCredits } from "@/components/credits-provider"
 import {
   Alert,
   AlertAction,
@@ -245,6 +246,7 @@ export function ChatThread({
   initialSessions?: Record<string, ChatSessionPersistedState>
   onTurnFinish?: () => void
 }) {
+  const { setCredits } = useCredits()
   const [value, setValue] = useState("")
   const [modelId, setModelId] = useState<GameModelId>(DEFAULT_GAME_MODEL_ID)
   // The transport live-reads this, so switching models applies from the next
@@ -279,6 +281,19 @@ export function ChatThread({
     // Fires when the assistant response finishes streaming, i.e. the turn is
     // done and the sandbox files reflect the latest changes.
     onFinish: () => onTurnFinish?.(),
+    // Transient data-credits parts never land on messages; this is the live
+    // path that drops the sidebar balance as each model step is charged.
+    onData: (dataPart) => {
+      if (
+        dataPart.type === "data-credits" &&
+        dataPart.data &&
+        typeof dataPart.data === "object" &&
+        "formatted" in dataPart.data &&
+        typeof dataPart.data.formatted === "string"
+      ) {
+        setCredits(dataPart.data.formatted)
+      }
+    },
   })
 
   // stopGeneration aborts the running task's streamText (works even after a

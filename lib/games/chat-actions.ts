@@ -28,8 +28,13 @@ async function requireGame(chatId: string) {
 export async function startChatSession(
   params: ChatStartSessionParams<typeof gameChat>
 ) {
-  await requireGame(params.chatId)
-  return start(params)
+  const game = await requireGame(params.chatId)
+  return start({
+    ...params,
+    triggerConfig: {
+      tags: ["credits", `org:${game.orgId}`],
+    },
+  })
 }
 
 export async function mintChatAccessToken(chatId: string) {

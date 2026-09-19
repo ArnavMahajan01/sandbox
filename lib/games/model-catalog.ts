@@ -11,7 +11,8 @@ export type GameModel = {
 }
 
 /**
- * Zero-cost `:free` OpenRouter models only — nothing here draws down credits.
+ * Catalog ids are the `:free` OpenRouter slugs. Building still spends org
+ * credits at the paid counterpart rates in `lib/credits/pricing.ts`.
  *
  * Picked from the free models that pass three filters: they support tool
  * calling (every game is written through the file tools), they actually reason,

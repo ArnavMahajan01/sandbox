@@ -1,4 +1,5 @@
-import { NANOS_PER_DOLLAR } from "@/lib/credits/ledger"
+export const NANOS_PER_DOLLAR = BigInt(1_000_000_000)
+export const FREE_CREDIT_NANOS = NANOS_PER_DOLLAR
 
 export function formatDollars(amount: bigint) {
   const negative = amount < BigInt(0)
