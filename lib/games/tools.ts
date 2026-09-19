@@ -27,8 +27,69 @@ function resolveGamePath(relativePath: string): string {
  * game's live sandbox and confines its target path to GAME_DIR, so the model can
  * only read and write within the game's own directory.
  */
+/**
+ * Parts of the game the agent can ask the player about. The agent picks one of
+ * these before writing a question, so it commits to a single area of the design
+ * rather than asking something vague.
+ */
+const ASK_PLAYER_DIMENSIONS = [
+  "loop", // the core moment-to-moment gameplay loop
+  "goal", // the objective, win/lose conditions, and progression
+  "world", // the setting, theme, and environment
+  "look", // the visual style, palette, and art direction
+  "feel", // controls, game feel, pacing, and difficulty
+  "audio", // music and sound design
+  "scope", // how big or ambitious the game should be
+] as const
+
 export function createGameTools(gameId: string) {
   return {
+    // Human-in-the-loop: this tool has no `execute`, so the AI SDK does not run
+    // it. The tool call is surfaced to the UI, the player picks an option, and
+    // the client sends back a result matching `outputSchema`. That result is fed
+    // to the model as the tool output on the next turn.
+    askPlayer: tool({
+      description:
+        "Ask the player a single multiple-choice question to settle a design decision before building. Use it when a choice would meaningfully change the game and you can't make a sensible default. First pick the dimension of the game you're asking about, then write one focused question with 2-4 distinct options. Do not use it for trivial choices you can decide yourself.",
+      inputSchema: z.object({
+        dimension: z
+          .enum(ASK_PLAYER_DIMENSIONS)
+          .describe(
+            "The part of the game this question is about: \"loop\" (core gameplay loop), \"goal\" (objective and win/lose), \"world\" (setting and theme), \"look\" (visual style), \"feel\" (controls, pacing, difficulty), \"audio\" (music and sound), or \"scope\" (how ambitious the game is). Pick the single best-fitting area before writing the question."
+          ),
+        question: z
+          .string()
+          .describe(
+            "The question to ask the player, phrased as one clear, self-contained sentence."
+          ),
+        options: z
+          .array(
+            z.object({
+              id: z
+                .string()
+                .describe(
+                  "A short, stable, machine-friendly identifier for this option, e.g. \"top_down\"."
+                ),
+              label: z
+                .string()
+                .describe("A short human-readable label shown to the player."),
+              description: z
+                .string()
+                .describe(
+                  "One sentence explaining what choosing this option means for the game."
+                ),
+            })
+          )
+          .min(2)
+          .max(4)
+          .describe("Between two and four distinct options for the player to choose from."),
+      }),
+      outputSchema: z.object({
+        id: z.string().describe("The id of the option the player chose."),
+        label: z.string().describe("The label of the option the player chose."),
+      }),
+    }),
+
     writeFile: tool({
       description:
         "Create or overwrite a file in the game directory with the given contents.",

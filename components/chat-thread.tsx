@@ -9,6 +9,7 @@ import {
   APICallError,
   getToolName,
   isToolUIPart,
+  lastAssistantMessageIsCompleteWithToolCalls,
   type DynamicToolUIPart,
   type ToolUIPart,
   type UIMessage,
@@ -22,9 +23,20 @@ import {
   AlertDescription,
   AlertTitle,
 } from "@/components/ui/alert"
+import { Badge } from "@/components/ui/badge"
 import { Bubble, BubbleContent } from "@/components/ui/bubble"
 import { Button } from "@/components/ui/button"
 import { Marker, MarkerContent, MarkerIcon } from "@/components/ui/marker"
+import {
+  Questionnaire,
+  QuestionnaireActions,
+  QuestionnaireChoice,
+  QuestionnaireChoiceDescription,
+  QuestionnaireChoices,
+  QuestionnaireItem,
+  QuestionnaireSubmit,
+  QuestionnaireTitle,
+} from "@/components/ui/questionnaire"
 import { Message, MessageAvatar, MessageContent } from "@/components/ui/message"
 import {
   MessageScroller,
@@ -111,6 +123,108 @@ function ToolMarker({ part }: { part: ToolUIPart | DynamicToolUIPart }) {
   )
 }
 
+// Input/output shapes of the `askPlayer` human-in-the-loop tool (see
+// lib/games/tools.ts). Kept local so the questionnaire can read a pending tool
+// call's input without threading the tool's inferred types through the UI.
+type AskPlayerOption = { id: string; label: string; description: string }
+type AskPlayerInput = {
+  dimension: string
+  question: string
+  options: AskPlayerOption[]
+}
+type AskPlayerOutput = { id: string; label: string }
+
+// Human-friendly names for the game dimensions the agent can ask about.
+const DIMENSION_LABELS: Record<string, string> = {
+  loop: "Gameplay loop",
+  goal: "Goal",
+  world: "World",
+  look: "Look",
+  feel: "Feel",
+  audio: "Audio",
+  scope: "Scope",
+}
+
+function isAskPlayerPart(part: ToolUIPart | DynamicToolUIPart) {
+  return getToolName(part) === "askPlayer"
+}
+
+// Renders a pending `askPlayer` tool call as a chatCN questionnaire. The tool
+// has no server-side execute, so it stays in "input-available" until the player
+// picks an option here; answering calls onAnswer, which feeds the result back
+// to the agent to resume the paused turn.
+function AskPlayerQuestionnaire({
+  toolCallId,
+  input,
+  onAnswer,
+}: {
+  toolCallId: string
+  input: AskPlayerInput
+  onAnswer: (output: AskPlayerOutput) => void
+}) {
+  const dimensionLabel =
+    DIMENSION_LABELS[input.dimension] ?? input.dimension
+
+  return (
+    <Bubble variant="ghost" className="w-full">
+      <BubbleContent className="w-full">
+        <Questionnaire
+          onSubmit={(event) => {
+            event.preventDefault()
+            const chosenId = new FormData(event.currentTarget).get(
+              toolCallId
+            )
+            if (typeof chosenId !== "string") return
+            const chosen = input.options.find(
+              (option) => option.id === chosenId
+            )
+            if (!chosen) return
+            onAnswer({ id: chosen.id, label: chosen.label })
+          }}
+        >
+          <QuestionnaireItem name={toolCallId} required>
+            <Badge variant="secondary" className="w-fit">
+              {dimensionLabel}
+            </Badge>
+            <QuestionnaireTitle>{input.question}</QuestionnaireTitle>
+            <QuestionnaireChoices>
+              {input.options.map((option) => (
+                <QuestionnaireChoice key={option.id} value={option.id}>
+                  {option.label}
+                  {option.description && (
+                    <QuestionnaireChoiceDescription>
+                      {option.description}
+                    </QuestionnaireChoiceDescription>
+                  )}
+                </QuestionnaireChoice>
+              ))}
+            </QuestionnaireChoices>
+            <QuestionnaireActions>
+              <QuestionnaireSubmit size="sm">Answer</QuestionnaireSubmit>
+            </QuestionnaireActions>
+          </QuestionnaireItem>
+        </Questionnaire>
+      </BubbleContent>
+    </Bubble>
+  )
+}
+
+// Once answered, the tool part carries the chosen option; show it as a
+// completed marker so the conversation records what the player picked.
+function AskPlayerAnswer({ output }: { output: AskPlayerOutput }) {
+  return (
+    <Marker data-status="done" className="text-foreground">
+      <MarkerIcon>
+        <CircleCheck className="text-emerald-600 dark:text-emerald-500" />
+      </MarkerIcon>
+      <MarkerContent>
+        You chose
+        <span className="ml-1.5 font-medium">{output.label}</span>
+      </MarkerContent>
+    </Marker>
+  )
+}
+
 function describeError(error: Error) {
   if (APICallError.isInstance(error) && error.statusCode === 401) {
     return "Your session expired. Sign in again to keep chatting."
@@ -142,6 +256,7 @@ export function ChatThread({
     messages,
     sendMessage,
     setMessages,
+    addToolOutput,
     regenerate,
     stop: aiStop,
     status,
@@ -151,6 +266,10 @@ export function ChatThread({
     messages: initialMessages,
     transport,
     resume: Boolean(initialSessions),
+    // When the player answers an askPlayer question, its tool call gains an
+    // output; this fires the next turn automatically so the paused agent
+    // resumes without the player also hitting send.
+    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     // Fires when the assistant response finishes streaming, i.e. the turn is
     // done and the sandbox files reflect the latest changes.
     onFinish: () => onTurnFinish?.(),
@@ -213,9 +332,39 @@ export function ChatThread({
                       <MessageContent>
                         {toolParts.length > 0 && (
                           <div className="flex flex-col gap-1.5">
-                            {toolParts.map((part) => (
-                              <ToolMarker key={part.toolCallId} part={part} />
-                            ))}
+                            {toolParts.map((part) => {
+                              if (isAskPlayerPart(part)) {
+                                if (part.state === "output-available") {
+                                  return (
+                                    <AskPlayerAnswer
+                                      key={part.toolCallId}
+                                      output={part.output as AskPlayerOutput}
+                                    />
+                                  )
+                                }
+
+                                if (part.state === "input-available") {
+                                  return (
+                                    <AskPlayerQuestionnaire
+                                      key={part.toolCallId}
+                                      toolCallId={part.toolCallId}
+                                      input={part.input as AskPlayerInput}
+                                      onAnswer={(output) =>
+                                        addToolOutput({
+                                          tool: "askPlayer",
+                                          toolCallId: part.toolCallId,
+                                          output,
+                                        })
+                                      }
+                                    />
+                                  )
+                                }
+                              }
+
+                              return (
+                                <ToolMarker key={part.toolCallId} part={part} />
+                              )
+                            })}
                           </div>
                         )}
                         {text && (
