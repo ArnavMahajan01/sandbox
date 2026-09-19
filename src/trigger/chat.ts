@@ -4,6 +4,7 @@ import type { UIMessage } from "ai"
 
 import { createGameSandbox } from "@/lib/daytona/util"
 import { loadGameChat, saveGameChat } from "@/lib/games/chat-store"
+import { gameInstructions } from "@/lib/games/instructions"
 
 const model = process.env.OPENROUTER_MODEL ?? "openrouter/free"
 
@@ -15,6 +16,7 @@ function withoutTrailingReply(messages: UIMessage[]) {
 
 export const gameChat = chat.agent({
   id: "game-chat",
+  system: gameInstructions,
   // Fires once per chat, on the first user message — provision the game's sandbox.
   onChatStart: async ({ chatId }) => {
     await createGameSandbox(chatId)
