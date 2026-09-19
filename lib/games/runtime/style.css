@@ -1,0 +1,81 @@
+:root {
+  color-scheme: dark;
+  --bg: #0b0b0f;
+  --fg: #fff7ed;
+  --muted: #cbb4a3;
+  --orange: #ea580c;
+  --amber: #f59e0b;
+  --violet: #a855f7;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  min-height: 100vh;
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  color: var(--fg);
+  background: var(--bg);
+}
+
+/* The engine mounts its full-screen WebGL canvas here. */
+#app {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+}
+
+/* Welcome overlay text, layered above the 3D scene. */
+.welcome {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0 2rem 12vh;
+  text-align: center;
+  pointer-events: none;
+}
+
+.badge {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--amber);
+  padding: 0.35rem 0.9rem;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 999px;
+  background: rgba(234, 88, 12, 0.08);
+  backdrop-filter: blur(6px);
+}
+
+h1 {
+  margin: 0.4rem 0 0;
+  font-size: clamp(2.5rem, 8vw, 4.5rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(120deg, var(--amber), var(--orange), var(--violet));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+p {
+  margin: 0.25rem 0 0;
+  font-size: clamp(0.95rem, 2.5vw, 1.15rem);
+  color: var(--muted);
+  max-width: 42ch;
+}

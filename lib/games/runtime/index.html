@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>New game</title>
+    <link rel="stylesheet" href="style.css" />
+
+    <!--
+      Three.js is loaded as an ES module from a CDN. The import map lets engine
+      modules (and your game code) use the bare "three" and "three/addons/"
+      specifiers. Keep this map when you rewrite index.html so the ./engine
+      toolkit keeps working.
+    -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.169.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.169.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="app"></div>
+
+    <main class="welcome">
+      <div class="badge">Game engine</div>
+      <h1>New game</h1>
+      <p>Describe the game you want to build and it will appear here.</p>
+    </main>
+
+    <script type="module">
+      import {
+        createGame,
+        BRAND,
+        BRAND_SEQUENCE,
+        THREE,
+        postfx,
+      } from "./engine/index.js"
+      import { addStarfield, setGradientBackground } from "./engine/scene.js"
+      import { Motion } from "./engine/animation.js"
+
+      // A gentle, welcoming scene: gradient sky, drifting stars, and a cube
+      // faceted in the logo's colors slowly tumbling in space.
+      const game = createGame({
+        mount: "#app",
+        background: BRAND.ink,
+        cameraPosition: [0, 0, 6],
+        lighting: { keyIntensity: 2.6, rimColor: BRAND.violet, rimIntensity: 0.8 },
+        hud: false,
+        input: false,
+      })
+
+      setGradientBackground(game.scene, 0x140a06, BRAND.ink)
+      addStarfield(game.scene, { count: 900, radius: 60, size: 0.35 })
+
+      // Cube: one brand color per face, plus a bright wireframe cage that glows.
+      const faceMaterials = BRAND_SEQUENCE.slice(0, 6).map(
+        (color) =>
+          new THREE.MeshStandardMaterial({
+            color,
+            roughness: 0.25,
+            metalness: 0.35,
+            emissive: color,
+            emissiveIntensity: 0.35,
+          })
+      )
+      const cube = new THREE.Mesh(new THREE.BoxGeometry(2.1, 2.1, 2.1), faceMaterials)
+      cube.castShadow = true
+      game.add(cube)
+
+      const cage = new THREE.LineSegments(
+        new THREE.EdgesGeometry(new THREE.BoxGeometry(2.16, 2.16, 2.16)),
+        new THREE.LineBasicMaterial({ color: BRAND.cream, transparent: true, opacity: 0.6 })
+      )
+      cube.add(cage)
+
+      // Orbiting spark that traces the cube, adding a bit of life.
+      const spark = new THREE.Mesh(
+        new THREE.SphereGeometry(0.12, 16, 16),
+        new THREE.MeshStandardMaterial({ color: BRAND.amber, emissive: BRAND.amber, emissiveIntensity: 2 })
+      )
+      game.add(spark)
+
+      // Bloom makes the emissive edges and spark glow. Falls back gracefully if
+      // the CDN addon can't load.
+      postfx.addBloom(game, { strength: 0.6, radius: 0.5, threshold: 0.6 }).catch(() => {})
+
+      game.onUpdate((dt, t) => {
+        cube.rotation.x += dt * 0.35
+        cube.rotation.y += dt * 0.5
+        cube.position.y = Motion.bob(t, 0.15, 1.2)
+        const r = 3.4
+        spark.position.set(Math.cos(t * 1.5) * r, Math.sin(t * 2.1) * 0.8, Math.sin(t * 1.5) * r)
+      })
+
+      game.start()
+    </script>
+  </body>
+</html>

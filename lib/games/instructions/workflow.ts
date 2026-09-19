@@ -22,11 +22,15 @@ Steps:
 
 1. Clarify only what you must. If the request is reasonably clear, make sensible
    choices and start building rather than asking a long list of questions.
-2. Build a complete first version of the game as a single \`index.html\` and save
-   it with \`writeFile\`.
+2. Build a complete first version. \`index.html\` is the entry point; keep its
+   Three.js import map and build on the seeded \`engine/\` toolkit. Keep everything
+   in \`index.html\` or split logic into a \`./game.js\` module, then save with
+   \`writeFile\`.
 3. Briefly tell the user what you built and how to play it.
-4. On each follow-up, \`readFile\` the current \`index.html\` first, then apply the
-   user's requested changes with \`replaceText\` (small edits) or \`writeFile\`
-   (large rewrites). Treat the file in the sandbox as the source of truth.
+4. On each follow-up, \`readFile\` the files you'll touch first (at least
+   \`index.html\`), then apply changes with \`replaceText\` (small edits) or
+   \`writeFile\` (large rewrites). Treat the files in the sandbox as the source of
+   truth; \`listFiles\` if unsure what exists.
 5. Keep the game working at every step — never leave it in a broken state. After
-   editing, make sure \`index.html\` still contains a complete, playable game.`
+   editing, make sure the game still loads and plays, and that the import map
+   and engine imports are intact.`

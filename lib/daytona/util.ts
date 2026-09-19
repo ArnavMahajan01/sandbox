@@ -1,3 +1,6 @@
+import { readdir } from "node:fs/promises"
+import path from "node:path"
+
 import { Daytona, type Sandbox } from "@daytona/sdk"
 
 import { loadGameSandboxId, saveGameSandboxId } from "@/lib/games/chat-store"
@@ -6,33 +9,65 @@ export const GAME_DIR = "/home/daytona/game"
 export const GAME_PORT = 3000
 const GAME_SERVER_SESSION = "game-server"
 
-const INDEX_HTML = `<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Game</title>
-  </head>
-  <body>
-    <h1>New game</h1>
-  </body>
-</html>
-`
+/**
+ * Local directory whose contents are seeded into every new game sandbox. It is
+ * never imported — files are copied onto the sandbox via the filesystem — so it
+ * is bundled into the deployed task via the additionalFiles build extension in
+ * trigger.config.ts and resolved relative to the project root at runtime.
+ */
+const RUNTIME_DIR = path.join(process.cwd(), "lib", "games", "runtime")
 
 /**
- * Creates a Daytona sandbox for a game, writes /home/daytona/game/index.html,
- * and saves the sandbox id on the game.
+ * Converts a host filesystem path (relative to RUNTIME_DIR) into its POSIX
+ * destination inside the sandbox game directory.
+ */
+function toSandboxPath(relativePath: string): string {
+  return path.posix.join(GAME_DIR, relativePath.split(path.sep).join("/"))
+}
+
+/**
+ * Copies every file, folder, and subfolder from the local runtime directory
+ * into the sandbox's game directory, preserving the directory structure.
+ */
+async function seedRuntimeFiles(sandbox: Sandbox) {
+  const entries = await readdir(RUNTIME_DIR, {
+    withFileTypes: true,
+    recursive: true,
+  })
+
+  await sandbox.fs.createFolder(GAME_DIR, "755")
+
+  const directories = entries.filter((entry) => entry.isDirectory())
+
+  for (const dir of directories) {
+    const localPath = path.join(dir.parentPath, dir.name)
+    const relativePath = path.relative(RUNTIME_DIR, localPath)
+    await sandbox.fs.createFolder(toSandboxPath(relativePath), "755")
+  }
+
+  const uploads = entries
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const localPath = path.join(entry.parentPath, entry.name)
+      const relativePath = path.relative(RUNTIME_DIR, localPath)
+      return { source: localPath, destination: toSandboxPath(relativePath) }
+    })
+
+  if (uploads.length > 0) {
+    await sandbox.fs.uploadFiles(uploads)
+  }
+}
+
+/**
+ * Creates a Daytona sandbox for a game, seeds it with the runtime template
+ * files, and saves the sandbox id on the game.
  */
 export async function createGameSandbox(gameId: string) {
   const daytona = new Daytona()
 
   const sandbox = await daytona.create({ language: "typescript" })
 
-  await sandbox.fs.createFolder("/home/daytona/game", "755")
-  await sandbox.fs.uploadFile(
-    Buffer.from(INDEX_HTML),
-    "/home/daytona/game/index.html"
-  )
+  await seedRuntimeFiles(sandbox)
 
   await saveGameSandboxId(gameId, sandbox.id)
 

@@ -1,3 +1,4 @@
+import { additionalFiles } from "@trigger.dev/build/extensions/core";
 import { defineConfig } from "@trigger.dev/sdk";
 
 export default defineConfig({
@@ -19,4 +20,9 @@ export default defineConfig({
     },
   },
   dirs: ["./src/trigger"],
+  build: {
+    // The runtime folder is never imported — its files are copied onto each
+    // sandbox via the filesystem — so bundle it into the deployed task.
+    extensions: [additionalFiles({ files: ["lib/games/runtime/**/*"] })],
+  },
 });

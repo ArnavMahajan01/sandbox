@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Template files seeded into game sandboxes; not part of the app source.
+    "lib/games/runtime/**",
   ]),
 ])
 
