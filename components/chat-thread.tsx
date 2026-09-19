@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import Image from "next/image"
 import { useChat } from "@ai-sdk/react"
 import type { ChatSessionPersistedState } from "@trigger.dev/sdk/chat"
@@ -48,6 +48,10 @@ import {
 } from "@/components/ui/message-scroller"
 import { Spinner } from "@/components/ui/spinner"
 import { mintChatAccessToken, startChatSession } from "@/lib/games/chat-actions"
+import {
+  DEFAULT_GAME_MODEL_ID,
+  type GameModelId,
+} from "@/lib/games/model-catalog"
 import { pendingGamePromptKey } from "@/lib/games/pending-prompt"
 import type { gameChat } from "@/src/trigger/chat"
 
@@ -237,20 +241,26 @@ export function ChatThread({
   gameId,
   initialMessages,
   initialSessions,
+  modelId = DEFAULT_GAME_MODEL_ID,
   onTurnFinish,
 }: {
   gameId: string
   initialMessages: UIMessage[]
   initialSessions?: Record<string, ChatSessionPersistedState>
+  modelId?: GameModelId
   onTurnFinish?: () => void
 }) {
   const [value, setValue] = useState("")
+  // The transport re-reads this on change, so a later picker only has to swap
+  // the prop; memoized so an unchanged id doesn't look like a new value.
+  const clientData = useMemo(() => ({ modelId }), [modelId])
   const transport = useTriggerChatTransport<typeof gameChat>({
     task: "game-chat",
     accessToken: ({ chatId }) => mintChatAccessToken(chatId),
     startSession: ({ chatId, clientData }) =>
       startChatSession({ chatId, clientData }),
     sessions: initialSessions,
+    clientData,
   })
   const {
     messages,

@@ -1,13 +1,11 @@
-import { openrouter } from "@openrouter/ai-sdk-provider"
 import { chat, upsertIncomingMessage } from "@trigger.dev/sdk/ai"
 import { stepCountIs, type UIMessage } from "ai"
 
 import { createGameSandbox } from "@/lib/daytona/util"
+import { gameClientDataSchema, gameModelSettings } from "@/lib/games/agent"
 import { loadGameChat, saveGameChat } from "@/lib/games/chat-store"
 import { gameInstructions } from "@/lib/games/instructions"
 import { createGameTools } from "@/lib/games/tools"
-
-const model = process.env.OPENROUTER_MODEL ?? "openrouter/free"
 
 function withoutTrailingReply(messages: UIMessage[]) {
   return messages.at(-1)?.role === "assistant"
@@ -18,6 +16,8 @@ function withoutTrailingReply(messages: UIMessage[]) {
 export const gameChat = chat.agent({
   id: "game-chat",
   system: gameInstructions,
+  // The picker lives on the client, so the chosen model rides in per turn.
+  clientDataSchema: gameClientDataSchema,
   // Resolved per turn so each tool is scoped to this chat's game sandbox.
   tools: ({ chatId }) => createGameTools(chatId),
   // Fires once per chat, on the first user message — provision the game's sandbox.
@@ -64,9 +64,9 @@ export const gameChat = chat.agent({
       lastEventId,
     })
   },
-  run: async ({ messages, tools, signal, streamText }) =>
+  run: async ({ messages, tools, signal, streamText, clientData }) =>
     streamText({
-      model: openrouter(model),
+      ...gameModelSettings(clientData?.modelId),
       messages,
       tools,
       abortSignal: signal,
